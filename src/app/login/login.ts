@@ -31,14 +31,6 @@ export class Login {
 
   constructor(private authService: AuthenticationService, private router: Router) {
     this.loggedIn = this.authService.isLoggedIn;
-    this.loggedIn.subscribe((val) => {
-      if (val) {
-        this.router.navigate(['/']);
-      }
-    });
-    if (this.authService.authenticated()) {
-      this.router.navigate(['/']);
-    }
   }
 
   onSubmit() {
