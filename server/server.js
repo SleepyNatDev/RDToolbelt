@@ -50,6 +50,24 @@ app.get('/', (req, res) => {
   res.json('v1.0.0');
 });
 
+app.get('/auth/state', (req, res) => {
+  try {
+    let accessToken = jwt.verify(req.cookies.accessToken, SECRET_KEY);
+    if (accessToken) {
+      res.json({ state: 1 });
+    }
+  } catch (err) {
+  }
+  try {
+    let refreshToken = jwt.verify(req.cookies.refreshToken, SECRET_KEY);
+    if (refreshToken) {
+      res.json({ state: 2 });
+    }
+  } catch (err) {
+  }
+  res.json({ state: 3 });
+});
+
 app.post('/auth/signup/', async (req, res) => {
   let client;
   
@@ -64,8 +82,7 @@ app.post('/auth/signup/', async (req, res) => {
     let sql = `
     INSERT INTO users (name, email, password)
     VALUES
-    ($1, $2, $3);
-    `;
+    ($1, $2, $3);`;
 
     const insert = await client.query(sql, [req.body.username, req.body.email, clientHash]);
     res.json({ status: 'ok' });
@@ -167,20 +184,66 @@ app.get('/recipes/', async (req, res) => {
     let sqlQuery = `SELECT 
     r.*,
     COALESCE(json_agg(t) FILTER (WHERE t.id IS NOT NULL), '[]') AS tags
-FROM 
-    recipes AS r
-LEFT OUTER JOIN 
-    recipesXtags rxt ON r.id = rxt.recipeid
-LEFT OUTER JOIN
-    tags t ON rxt.tagid = t.id
-GROUP BY 
-    r.id, r.name
-ORDER BY
-  r.id asc;`;
+    FROM 
+        recipes AS r
+    LEFT OUTER JOIN 
+        recipesXtags rxt ON r.id = rxt.recipeid
+    LEFT OUTER JOIN
+        tags t ON rxt.tagid = t.id
+    GROUP BY 
+        r.id, r.name
+    ORDER BY
+      r.id asc;`;
 
     let result = await client.query(sqlQuery);
     
     res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.error });
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.get('/recipes/:id', async (req, res) => {
+  let id = req.params.id
+  try{
+    let num = Number(id);
+    if (Number.isNaN(num) || num == 0) {
+      res.status(400).json({ error: 'Not a valid id.' });
+    }
+  } catch (err) {
+    // eat it
+  }
+  
+  let client;
+  try {
+    client = await pool.connect();
+
+    let sqlQuery = `SELECT 
+    r.*,
+    COALESCE(json_agg(t) FILTER (WHERE t.id IS NOT NULL), '[]') AS tags
+    FROM 
+        recipes AS r
+    LEFT OUTER JOIN 
+        recipesXtags rxt ON r.id = rxt.recipeid
+    LEFT OUTER JOIN
+        tags t ON rxt.tagid = t.id
+    WHERE 
+        r.id = $1
+    GROUP BY 
+        r.id, r.name
+    ORDER BY
+      r.id asc;`;
+
+    let result = await client.query(sqlQuery, [req.params.id]);
+    
+    if (result.rowCount == 0) {
+      res.status(404).json({ error: 'No recipe found.' });
+    }
+
+    res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.error });
@@ -206,17 +269,16 @@ app.post('/recipes/add/', ejwt({ secret: SECRET_KEY, algorithms: ["HS256"], getT
     SELECT 
     r.*,
     COALESCE(json_agg(t) FILTER (WHERE t.id IS NOT NULL), '[]') AS tags
-FROM 
-    recipes AS r
-LEFT OUTER JOIN 
-    recipesXtags rxt ON r.id = rxt.recipeid
-LEFT OUTER JOIN
-    tags t ON rxt.tagid = t.id
-GROUP BY 
-    r.id, r.name
-ORDER BY
-  r.id asc;
-    `;
+    FROM 
+        recipes AS r
+    LEFT OUTER JOIN 
+        recipesXtags rxt ON r.id = rxt.recipeid
+    LEFT OUTER JOIN
+        tags t ON rxt.tagid = t.id
+    GROUP BY 
+        r.id, r.name
+    ORDER BY
+      r.id asc;`;
     
     const insert = await client.query(sqlInsertRecipe, [recipe.name, recipe.image, recipe.description]);
     const result = await client.query(sqlGetRecipes);

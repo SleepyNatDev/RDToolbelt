@@ -9,6 +9,8 @@ import { Login } from './login/login';
 import { anonymousGuard } from './anonymous-guard';
 import { authGuard } from './auth-guard';
 import { Dashboard } from './dashboard/dashboard';
+import { RecipeView } from './recipe-view/recipe-view';
+import { FourOhFour } from './four-oh-four/four-oh-four';
 
 export const routes: Routes = [
     {
@@ -46,11 +48,25 @@ export const routes: Routes = [
     {
         path: 'recipes',
         component: Recipes,
-        title: 'Recipes - RDToolbelt',
+        title: 'Recipes - RDToolbelt'
+    },
+    {
+        path: 'recipes/:id',
+        component: RecipeView,
+        title: 'test'
     },
     {
         path: 'msj-calc',
         component: MsjCalc,
         title: 'Mifflin-St Jeor Calculator - RDToolbelt',
+    },
+    {
+        path: '404',
+        component: FourOhFour,
+        title: 'Page Not Found - RDToolbelt'
+    },
+    {
+        path: '**',
+        redirectTo: '404'
     }
 ];

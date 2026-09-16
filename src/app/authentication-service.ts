@@ -22,18 +22,35 @@ export class AuthenticationService {
     }
 
     constructor(private http: HttpClient, private router: Router) {
-        this.refreshAccessToken().subscribe({
-            next: () => {
-                this.loggedIn.next(true);
-                this.scheduleRefresh();
-                this.initialized.next(true);
-                this.initialized.complete();
-            },
-            error: () => {
-                this.initialized.next(true);
-                this.initialized.complete();
+        this.getState().subscribe((loginState) => {
+            switch(loginState.state) {
+                case LoginStateId.LoggedIn:
+                    this.loggedIn.next(true);
+                    this.scheduleRefresh();
+                    this.initialized.next(true);
+                    this.initialized.complete();
+                    break;
+                case LoginStateId.Refresh:
+                    this.refreshAccessToken().subscribe({
+                        next: () => {
+                            this.loggedIn.next(true);
+                            this.scheduleRefresh();
+                            this.initialized.next(true);
+                            this.initialized.complete();
+                        },
+                        error: () => {
+                            this.initialized.next(true);
+                            this.initialized.complete();
+                        }
+                    });
+                    break;
+                case LoginStateId.LoggedOut:
+                    this.initialized.next(true);
+                    this.initialized.complete();
+                    break;
             }
         });
+        
     }
 
     login(fd: FormData) {
@@ -69,4 +86,18 @@ export class AuthenticationService {
     private refreshAccessToken() {
         return this.http.get('/api/auth/refresh', { withCredentials: true });
     }
+
+    private getState() {
+        return this.http.get<LoginState>('/api/auth/state', { withCredentials: true });
+    }
+}
+
+export interface LoginState {
+    state: LoginStateId;
+}
+
+export enum LoginStateId {
+    'LoggedIn' = 1,
+    'Refresh' = 2,
+    'LoggedOut' = 3
 }

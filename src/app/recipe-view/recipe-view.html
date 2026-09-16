@@ -1,0 +1,14 @@
+@if ((currRecipe | async)?.id != 0) {
+    <mat-card>
+        <mat-card-content>
+            <mat-label>{{ (currRecipe | async)?.id }}</mat-label>
+            
+            <mat-label>{{ (currRecipe | async)?.description }}</mat-label>
+            @for (tag of (currRecipe | async)?.tags; track tag.id) {
+                <mat-chip>
+                    {{ tag.name }}
+                </mat-chip>
+            }
+        </mat-card-content>
+    </mat-card>
+}
